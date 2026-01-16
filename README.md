@@ -4,7 +4,7 @@ A FastAPI-based web application that classifies tweet sentiments using Google's 
 
 ## Features
 
-- **File Upload**: Upload tweet data in JSON, CSV, or TXT format (up to 10MB)
+- **File Upload**: Upload tweet data in JSON format (up to 10MB)
 - **Smart Batching**: Automatically splits data into optimized batches based on token count
 - **AI Classification**: Uses Google Gemini 2.5 Flash for sentiment analysis
 - **Batch Processing**: Classifies tweets into Positive, Negative, or Neutral sentiments
