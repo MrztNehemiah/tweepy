@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TWEEPY - Tweet Classifier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h2 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .upload-section, .classify-section {
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .classify-section {
+            border-bottom: none;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input[type="file"]:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .btn-upload {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-upload:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-classify {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-classify:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .file-info {
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🐦 TWEEPY Classifier</h2>
+        
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="section-title">Step 1: Upload Your File</div>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" name="file" accept=".csv,.txt,.json">
+            </div>
+            <button class="btn-upload" onclick="uploadFile()" id="uploadBtn">
+                📤 Upload File
+            </button>
+            <div id="uploadMessage"></div>
+        </div>
+        
+        <!-- Classify Section -->
+        <div class="classify-section">
+            <div class="section-title">Step 2: Classify Tweets</div>
+            <button class="btn-classify" onclick="classifyFile()" id="classifyBtn" disabled>
+                🤖 Process & Download
+            </button>
+            <div id="classifyMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFileName = null;
+
+        // Upload File Function
+        async function uploadFile() {
+            try {
+                const fileInput = document.getElementById('fileInput');
+                const uploadBtn = document.getElementById('uploadBtn');
+                const uploadMessage = document.getElementById('uploadMessage');
+                
+                if (!fileInput.files.length) {
+                    showMessage(uploadMessage, 'Please select a file first', 'error');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Disable button and show loading
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<span class="spinner"></span> Uploading...';
+                showMessage(uploadMessage, 'Uploading file...', 'processing');
+
+                const response = await fetch('http://localhost:8000/api/v1/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+                uploadedFileName = data.filename;
+
+                // Show success message
+                showMessage(uploadMessage, 
+                    `✓ Uploaded: ${data.filename} (${formatBytes(data.size)})`, 
+                    'success'
+                );
+
+                // Enable classify button
+                document.getElementById('classifyBtn').disabled = false;
+                
+                // Reset upload button
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '📤 Upload File';
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showMessage(
+                    document.getElementById('uploadMessage'), 
+                    `Error: ${error.message}`, 
+                    'error'
+                );
+                document.getElementById('uploadBtn').disabled = false;
+                document.getElementById('uploadBtn').innerHTML = '📤 Upload File';
+            }
+        }
+
+        // Classify and Download Function
+        async function classifyFile() {
+            if (!uploadedFileName) {
+                showMessage(
+                    document.getElementById('classifyMessage'), 
+                    'Please upload a file first', 
+                    'error'
+                );
+                return;
+            }
+
+            try {
+                const classifyBtn = document.getElementById('classifyBtn');
+                const classifyMessage = document.getElementById('classifyMessage');
+
+                // Disable button and show processing
+                classifyBtn.disabled = true;
+                classifyBtn.innerHTML = '<span class="spinner"></span> Processing...';
+                showMessage(classifyMessage, 
+                    '⚙️ Processing batches... This may take a few minutes.', 
+                    'processing'
+                );
+
+                // Make the classify request
+                const response = await fetch(
+                    `http://localhost:8000/api/v1/classify?file_name=${encodeURIComponent(uploadedFileName)}&retry=5`
+                );
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Classification failed');
+                }
+
+                // Get processing summary from headers
+                const summary = response.headers.get('X-Processing-Summary') || '';
+
+                // Get the file blob
+                const blob = await response.blob();
+                
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `processed_${uploadedFileName}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                // Show success message
+                showMessage(classifyMessage, 
+                    `✓ Classification complete! File downloaded. ${summary}`, 
+                    'success'
+                );
+
+                // Reset classify button
+                classifyBtn.disabled = false;
+                classifyBtn.innerHTML = '🤖 Process & Download';
+                
+                // Reset for new file
+                uploadedFileName = null;
+                document.getElementById('classifyBtn').disabled = true;
+                document.getElementById('fileInput').value = '';
+
+            } catch (error) {
+                console.error('Classification error:', error);
+                showMessage(
+                    document.getElementById('classifyMessage'), 
+                    `Error: ${error.message}`, 
+                    'error'
+                );
+                document.getElementById('classifyBtn').disabled = false;
+                document.getElementById('classifyBtn').innerHTML = '🤖 Process & Download';
+            }
+        }
+
+        // Helper function to show messages
+        function showMessage(element, text, type) {
+            element.innerHTML = `<div class="message ${type}">${text}</div>`;
+        }
+
+        // Helper function to format file size
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
